@@ -1,0 +1,494 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url("{% static 'bg_light.jpg' %}");
+      background-repeat: no-repeat;
+      background-size: cover;
+      color: black;
+      margin: 0;
+      padding: 20px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    body::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: inherit;
+      background-repeat: no-repeat;
+      background-size: cover;
+      filter: blur(8px);
+      opacity: 0.8;
+      z-index: -1;
+    }
+
+    body.dark-mode {
+      background-image: url("{% static 'bg_dark.jpg' %}");
+      color: white;
+    }
+
+    body.dark-mode::before {
+      background-image: url("{% static 'bg_dark.jpg' %}");
+      filter: blur(8px);
+      opacity: 0.8;
+    }
+
+    h1 {
+      text-align: center;
+      color: purple;
+    }
+
+    .container {
+      text-align: center;
+      max-width: 600px;
+      margin: auto;
+      padding: 40px;
+      padding-bottom: 10px;
+      padding-top: 10px;
+      border-radius: 10px;
+      background-color: bisque;
+    }
+
+    .container.no-data {
+      padding: 40px;
+      /* Reduced padding for no data */
+      height: 100px;
+      /* Fixed height when no data */
+    }
+
+    .dark-mode {
+      background-color: black;
+      color: white;
+    }
+
+    .container.dark-mode {
+      background-color: gray;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+
+    /* Toggle Button */
+    .toggle-switch {
+      position: relative;
+      width: 60px;
+      height: 34px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: '';
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+
+    input:checked+.slider {
+      background-color: purple;
+    }
+
+    input:checked+.slider:before {
+      transform: translateX(26px);
+    }
+
+    input[type='range'] {
+      width: 200px;
+    }
+
+    .reset-btn {
+      margin-left: 10px;
+      padding: 5px 10px;
+      background-color: purple;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .button-group {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 20px 0;
+    }
+
+    body.dark-mode .no-data {
+      color: orange;
+      /* Change color to orange in dark mode */
+    }
+
+    /* Overlay for non-highlighted elements */
+    .blur-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      backdrop-filter: blur(2px);
+      background: rgba(255, 255, 255, 0.4);
+      z-index: 5;
+    }
+
+    /* Highlighted Element */
+    .highlight {
+      position: relative;
+      z-index: 10;
+      border: 2px solid orange;
+      box-shadow: 0 0 10px orange;
+    }
+
+    /* Walkthrough Tooltip */
+    .tooltip {
+      position: absolute;
+      padding: 10px;
+      background: #333;
+      color: #fff;
+      border-radius: 5px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 20;
+    }
+  </style>
+</head>
+
+<body>
+  {% csrf_token %}
+  <!--h1>Quiz App</h1-->
+  <div class="controls">
+    <label class="toggle-switch">
+      <input type="checkbox" id="darkModeToggle" />
+      <span class="slider"></span>
+    </label>
+    <span style="margin-left: 10px;">Dark Mode</span>
+    <label for="fontSizeSlider" style="margin-left: 20px;">Text Size:</label>
+    <input type="range" id="fontSizeSlider" min="12" max="24" value="16" style="margin-left: 10px;" />
+    <button class="reset-btn" id="resetButton">Reset</button>
+  </div>
+
+  <div class="container">
+    <canvas id="marksChart" width="600" height="500"></canvas><br>
+    <h2 id="noDataMessage" style="color: red; display: none;" class="no-data">No data found</h2>
+    <div class="button-group">
+      <button class="reset-btn" id="tohome" onclick="goToHome()">Go to Home</button>
+      <button class="reset-btn" id="delButton" onclick="eraseAllData()">Erase All Data</button>
+      <div class="tooltip" id="walkthroughTooltip"></div>
+      <div class="blur-overlay" id="blurOverlay" style="display: none;"></div>
+    </div>
+  </div>
+
+
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const darkModeToggle = document.getElementById('darkModeToggle')
+    const body = document.body
+    const fontSizeSlider = document.getElementById('fontSizeSlider')
+    const resetButton = document.getElementById('resetButton')
+    const container = document.querySelector('.container');
+    let isDarkMode = false // Track dark mode state
+
+    // Function to create the chart with current font size and line color
+    function createChart(
+      fontSize,
+      lineColor = 'black',
+      gridColor = 'rgba(0, 0, 0, 0.1)',
+    ) {
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Math', 'Science', 'Geography', 'Computers'], // X-axis labels
+          datasets: [
+            {
+              label: 'Marks',
+              data: [], // Start with an empty dataset
+              pointBackgroundColor: [
+                'rgba(227, 168, 193, 1)',
+                'rgba(227, 220, 168, 1)',
+                'rgba(190, 227, 168, 1)',
+                'rgba(141, 204, 217, 1)',
+              ], // Colors for each point
+              pointBorderColor: [
+                'rgba(190, 90, 140, 1)',
+                'rgba(190, 180, 60, 1)',
+                'rgba(90, 190, 60, 1)',
+                'rgba(60, 140, 190, 1)',
+              ], // Border colors for each point
+              pointRadius: 8, // Increase the size of the points
+              borderColor: lineColor, // Dynamic color for the line
+              backgroundColor: 'rgba(75, 192, 192, 0.2)',
+              borderWidth: 2,
+              tension: 0, // Set tension to 0
+            },
+          ],
+        },
+        options: {
+          responsive: false, // Disable responsiveness to keep fixed size
+          spanGaps: true, // Enable spanning over null values
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 105, // Set the maximum value slightly above 100
+              title: {
+                display: true,
+                text: 'Marks',
+                font: {
+                  size: fontSize, // Set the title font size
+                },
+              },
+              ticks: {
+                stepSize: 20, // Sets the interval for levels (20, 40, ..., 100)
+                callback: function (value) {
+                  return value <= 100 ? value : '' // Only show ticks up to 100
+                },
+                font: {
+                  size: fontSize, // Set tick font size
+                },
+              },
+              grid: {
+                color: (context) => {
+                  return context.tick.value <= 100
+                    ? 'rgba(0,0,0,0.1)'
+                    : 'rgba(0,0,0,0)' // Draw lines only up to 100
+                },
+                drawTicks: true,
+                drawBorder: true,
+              },
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Subjects',
+                font: {
+                  size: fontSize, // Set the title font size
+
+                },
+              },
+              ticks: {
+                font: {
+                  size: fontSize, // Set tick font size
+                },
+              },
+              grid: {
+                color: gridColor, // Conditional color for grid lines
+              },
+            },
+          },
+          plugins: {
+            legend: {
+              display: false, // Hide the legend
+            },
+          },
+          animation: {
+            onComplete: function () {
+              const chart = this
+              const points = marksData.length
+
+              // Function to render each point sequentially
+              const renderPoints = (index) => {
+                if (index < points) {
+                  // Add the next point to the dataset
+                  chart.data.datasets[0].data.push(marksData[index])
+                  chart.update() // Update the chart to show the current point
+                  setTimeout(() => renderPoints(index + 1), 1000) // Delay for next point
+                }
+              }
+
+              renderPoints(0) // Start rendering points
+            },
+          },
+        },
+      })
+    }
+
+    // Function to update chart colors based on dark mode state
+    function updateChartColors() {
+      const fontColor = isDarkMode ? 'white' : 'black'
+      const lineColor = isDarkMode ? 'white' : 'black'
+      const gridColor = isDarkMode
+        ? 'rgba(255, 255, 255, 0.2)'
+        : 'rgba(0, 0, 0, 0.1)'
+      const fontSize = parseInt(fontSizeSlider.value) // Get the current font size from the slider
+
+      // Update the chart's dataset line color
+      marksChart.data.datasets[0].borderColor = lineColor
+
+      // Update y-axis grid and font colors
+      marksChart.options.scales.y.grid.color = (context) => {
+        return context.tick.value <= 100 ? gridColor : 'rgba(0,0,0,0)'
+      }
+      marksChart.options.scales.y.ticks.color = fontColor
+      marksChart.options.scales.y.title.color = fontColor
+      marksChart.options.scales.y.ticks.font.size = fontSize
+      marksChart.options.scales.y.title.font.size = fontSize
+
+      // Update x-axis grid and font colors
+      marksChart.options.scales.x.ticks.color = fontColor
+      marksChart.options.scales.x.title.color = fontColor
+      marksChart.options.scales.x.grid.color = gridColor
+      marksChart.options.scales.x.ticks.font.size = fontSize
+      marksChart.options.scales.x.title.font.size = fontSize
+
+      // Update the chart to reflect new colors and font sizes
+      marksChart.update()
+    }
+
+    // Event listener for dark mode toggle
+    darkModeToggle.addEventListener('change', () => {
+      container.classList.toggle('dark-mode');
+      isDarkMode = darkModeToggle.checked
+      body.classList.toggle('dark-mode', isDarkMode)
+      updateChartColors() // Update the chart color
+    })
+
+    // Event listener for font size change
+    fontSizeSlider.addEventListener('input', (event) => {
+      document.body.style.fontSize = event.target.value + 'px'
+      updateChartColors() // Recreate chart with new font size and current color scheme
+    })
+
+    // Event listener for reset button
+    resetButton.addEventListener('click', () => {
+      fontSizeSlider.value = 16
+      darkModeToggle.checked = false
+      isDarkMode = false
+      body.classList.remove('dark-mode')
+      container.classList.remove('dark-mode');
+      document.body.style.fontSize = '16px'
+      updateChartColors() // Reset the chart to default colors and font size
+    })
+
+    // Initial setup
+    const ctx = document.getElementById('marksChart').getContext('2d')
+
+    const marksData = [40, 50, 100, 80] // Sample marks data
+    console.log(marksData);
+    const allMarksNull = marksData.every(mark => mark === 'null');
+    console.log(allMarksNull)
+    function displayNoDataMessage() {
+      noDataMessage.style.display = 'block';
+      container.classList.add('no-data');
+      marksChart.style.display = 'none';
+    }
+
+    // Check for all null or empty values and act accordingly
+    if (allMarksNull) {
+      displayNoDataMessage(); // Display no data message
+    } else {
+      noDataMessage.style.display = 'none'; // Hide no data message
+      let marksChart = createChart(16, 'black', 'rgba(0, 0, 0, 0.1)'); // Create chart only if there is data
+    }
+    function goToHome() {
+      window.location.href = '/'; // Update this URL if your home page has a different path
+    }
+    function eraseAllData() {
+      if (confirm("This will erase all your previous scores. Do you want to proceed?")) {
+        window.location.href = "{% url 'deletedata' %}";
+      }
+    }
+    // Walkthrough data
+    const walkthroughSteps = [
+      { elementId: 'marksChart', message: 'This shows the statistics of attempted quizzes' },
+      { elementId: 'delButton', message: 'Click here to clear all scores' },
+      { elementId: 'tohome', message: 'Head back to home page' }
+    ];
+
+    let currentStep = 0;
+
+    // Initialize Walkthrough
+    function startWalkthrough() {
+      showTooltip();
+    }
+
+    // Display tooltip for the current step
+    function showTooltip() {
+      const step = walkthroughSteps[currentStep];
+      const element = document.getElementById(step.elementId);
+      const tooltip = document.getElementById('walkthroughTooltip');
+      const blurOverlay = document.getElementById('blurOverlay');
+
+      // Show overlay and highlight element
+      blurOverlay.style.display = 'block';
+      element.classList.add('highlight');
+
+      // Position tooltip and show message
+      const rect = element.getBoundingClientRect();
+      tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+      tooltip.style.left = `${rect.left + window.scrollX}px`;
+      tooltip.textContent = step.message;
+      tooltip.style.opacity = 1;
+      if (currentStep == 1) {
+        element.onclick = () => todelete();
+      }
+      else
+        // Add event listener to proceed to next step
+        element.onclick = () => nextStep();
+    }
+    function todelete() {
+      displayNoDataMessage();
+      nextStep();
+    }
+    // Move to next step in walkthrough
+    function nextStep() {
+      document.getElementById(walkthroughSteps[currentStep].elementId).onclick = null; // Remove current event
+      document.getElementById(walkthroughSteps[currentStep].elementId).classList.remove('highlight'); // Remove highlight
+      currentStep++;
+
+      if (currentStep < walkthroughSteps.length) {
+        showTooltip();
+      } else {
+        endWalkthrough();
+      }
+    }
+
+
+    // End the walkthrough
+    function endWalkthrough() {
+      document.getElementById('blurOverlay').style.display = 'none'; // Hide overlay
+      document.getElementById('walkthroughTooltip').style.opacity = 0;
+      window.location.href = "/"; // Redirect to the quiz page with subject
+    }
+
+    // Start walkthrough on page load
+    window.onload = startWalkthrough;
+  </script>
+</body>
+
+</html>

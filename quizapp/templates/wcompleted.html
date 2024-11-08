@@ -1,0 +1,369 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Result</title>
+    <style>
+        /* Existing styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url("{% static 'bg_light.jpg' %}");
+            background-repeat: no-repeat;
+            background-size: cover;
+            color: black;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: inherit;
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter: blur(8px);
+            opacity: 0.8;
+            z-index: -1;
+        }
+
+        body.dark-mode {
+            background-image: url("{% static 'bg_dark.jpg' %}");
+            color: white;
+        }
+
+        body.dark-mode::before {
+            background-image: url("{% static 'bg_dark.jpg' %}");
+            filter: blur(8px);
+            opacity: 0.8;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 600px;
+            margin: auto;
+            padding: 40px;
+            border-radius: 10px;
+            background-color: bisque;
+            position: relative;
+            /* Position for the speaker icon */
+        }
+
+        .dark-mode {
+            background-color: black;
+            color: white;
+        }
+
+        .container.dark-mode {
+            background-color: gray;
+        }
+
+        h1 {
+            color: purple;
+            margin-bottom: 20px;
+        }
+
+        /* Speaker Icon Styling */
+        .speaker-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            fill: gray;
+            transition: fill 0.2s;
+        }
+
+        .speaker-icon:hover {
+            fill: purple;
+        }
+
+        /* Controls */
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        /* Toggle Button */
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 34px;
+            margin-right: 10px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: purple;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Font Size Slider */
+        input[type="range"] {
+            width: 150px;
+        }
+
+        .reset-btn {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background-color: purple;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Home Button */
+        .home-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: purple;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Dark mode speaker icon styling */
+        .container.dark-mode .speaker-icon {
+            fill: purple;
+        }
+
+        .container.dark-mode .speaker-icon:hover {
+            fill: white;
+        }
+
+        /* Overlay for non-highlighted elements */
+        .blur-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            backdrop-filter: blur(2px);
+            background: rgba(255, 255, 255, 0.4);
+            z-index: 5;
+        }
+
+        /* Highlighted Element */
+        .highlight {
+            position: relative;
+            z-index: 10;
+            border: 2px solid orange;
+            box-shadow: 0 0 10px orange;
+        }
+
+        /* Walkthrough Tooltip */
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(51, 51, 51, 0.9);
+            color: #fff;
+            border-radius: 5px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 20;
+            pointer-events: none;
+            /* Prevents mouse events on the tooltip */
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="controls">
+        <label class="toggle-switch">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="slider"></span>
+        </label>
+        <span>Dark Mode</span>
+        <label for="fontSizeSlider" style="margin-left: 20px;">Text Size:</label>
+        <input type="range" id="fontSizeSlider" min="12" max="24" value="16" style="margin-left: 10px;">
+        <button class="reset-btn" id="resetButton">Reset</button>
+    </div>
+
+    <div class="container">
+        <!-- Speaker Icon for Audio Message -->
+        <div id="show">
+            <svg class="speaker-icon" onclick="speak()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 3v18l-6-6h-4v-6h4l6-6zm1.5 6h1.5v4h-1.5v-4zm-3 0h1.5v4H10.5v-4z" />
+                <path
+                    d="M18 12c0 1.65-.56 3.16-1.5 4.5l1.42 1.42C19.42 16.11 20 14.19 20 12c0-2.19-.58-4.11-1.5-5.92l-1.42 1.42C17.44 8.84 18 10.35 18 12zM5.5 12c0 2.85 1.45 5.24 3.62 6.5l-1.42 1.42C6.58 17.11 5 14.72 5 12c0-2.72 1.58-5.11 3.7-7.14L9.12 4.5C7.95 5.76 5.5 8.15 5.5 12z" />
+            </svg>
+
+            <h1>Test Completed!</h1>
+            <p><span id="sub">Your</span> test is taken, and your score is <span id="score">85</span>.</p>
+        </div>
+        <button class="home-btn" onclick="goToHome()" id="tohome">Go to Home Page</button>
+        <div class="tooltip" id="walkthroughTooltip"></div>
+        <div class="blur-overlay" id="blurOverlay" style="display: none;"></div>
+    </div>
+
+    <script>
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const fontSizeSlider = document.getElementById('fontSizeSlider');
+        const resetButton = document.getElementById('resetButton');
+        const body = document.body;
+        const container = document.querySelector('.container');
+        const fscore = document.getElementById('score');
+        const fsub = document.getElementById('sub');
+        fsub.innerHTML = 'Mathematics';
+        fscore.innerHTML = '{{score}}';
+
+        darkModeToggle.addEventListener('change', () => {
+            body.classList.toggle('dark-mode');
+            container.classList.toggle('dark-mode');
+        });
+
+        fontSizeSlider.addEventListener('input', (event) => {
+            const newSize = event.target.value + 'px';
+            document.body.style.fontSize = newSize;
+        });
+
+        resetButton.addEventListener('click', () => {
+            document.body.style.fontSize = '16px';
+            fontSizeSlider.value = 16;
+            body.classList.remove('dark-mode');
+            container.classList.remove('dark-mode');
+            darkModeToggle.checked = false;
+        });
+
+        // Function to navigate to the home page
+        function goToHome() {
+            window.location.href = '/whome'; // Update this URL if your home page has a different path
+        }
+
+        // Function to speak the test result
+        function speak() {
+            const score = document.getElementById('score').textContent;
+            const message = `This test is completed, and your score is {{score}}.`;
+            const speech = new SpeechSynthesisUtterance(message);
+            speechSynthesis.speak(speech);
+        }
+        // Walkthrough data
+        const walkthroughSteps = [
+            { elementId: 'show', message: 'View and listen to your total score' },
+            { elementId: 'tohome', message: 'Go back to home page' },
+        ];
+
+        let currentStep = 0;
+
+        // Initialize Walkthrough
+        function startWalkthrough() {
+            showTooltip();
+        }
+
+        // Display tooltip for the current step
+        function showTooltip() {
+            const step = walkthroughSteps[currentStep];
+            const element = document.getElementById(step.elementId);
+            const tooltip = document.getElementById('walkthroughTooltip');
+            const blurOverlay = document.getElementById('blurOverlay');
+
+            // Show overlay and highlight element
+            blurOverlay.style.display = 'block';
+            element.classList.add('highlight');
+
+            // Wait for the tooltip to be rendered before calculating its position
+            setTimeout(() => {
+                const rect = element.getBoundingClientRect();
+                const tooltipHeight = tooltip.offsetHeight; // Get the tooltip height
+                const tooltipMargin = 5; // Margin between the element and the tooltip
+
+                // Calculate position for the tooltip
+                const topPosition = rect.bottom + window.scrollY + tooltipMargin;
+                const leftPosition = rect.left + window.scrollX;
+
+                // Position the tooltip below the element
+                tooltip.style.top = `${topPosition}px`;
+                tooltip.style.left = `${leftPosition}px`;
+                tooltip.textContent = step.message;
+                tooltip.style.opacity = 1;
+
+                // Adjust for viewport boundaries
+                const viewportHeight = window.innerHeight;
+                if (topPosition + tooltipHeight > viewportHeight) {
+                    tooltip.style.top = `${rect.top + window.scrollY - tooltipHeight - tooltipMargin}px`; // Position above the element if it goes off-screen
+                }
+
+                // Add event listener to proceed to the next step
+                element.onclick = () => nextStep();
+            }, 0); // Use a timeout to allow the tooltip to render
+        }
+
+        // Move to next step in walkthrough
+        function nextStep() {
+            // Remove current event listener
+            const currentElement = document.getElementById(walkthroughSteps[currentStep].elementId);
+            currentElement.onclick = null; // Remove current event
+            currentElement.classList.remove('highlight'); // Remove highlight
+            currentStep++;
+
+            // Check if we have more steps
+            if (currentStep < walkthroughSteps.length) {
+                showTooltip(); // Show the next tooltip
+            } else {
+                endWalkthrough(); // End the walkthrough
+            }
+        }
+
+        // End the walkthrough
+        function endWalkthrough() {
+            document.getElementById('blurOverlay').style.display = 'none'; // Hide overlay
+            document.getElementById('walkthroughTooltip').style.opacity = 0;
+            currentStep = 0; // Reset to first step if you want to allow restarting the walkthrough later
+            const qp = "{% url 'whome2' %}";
+            window.location.href = qp; // Redirect to the quiz page with subject
+        }
+
+        // Start walkthrough on page load
+        window.onload = startWalkthrough;
+
+    </script>
+
+</body>
+
+</html>

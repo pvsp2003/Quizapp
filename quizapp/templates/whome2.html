@@ -1,0 +1,374 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <style>
+        /* Basic styles */
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url("{% static 'bg_light.jpg' %}");
+            background-repeat: no-repeat;
+            background-size: cover;
+            color: black;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: inherit;
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter: blur(8px);
+            opacity: 0.8;
+            z-index: -1;
+        }
+
+        body.dark-mode {
+            background-image: url("{% static 'bg_dark.jpg' %}");
+            color: white;
+        }
+
+        body.dark-mode::before {
+            background-image: url("{% static 'bg_dark.jpg' %}");
+            filter: blur(8px);
+            opacity: 0.8;
+        }
+
+        /* Overlay for non-highlighted elements */
+        .blur-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            backdrop-filter: blur(2px);
+            background: rgba(255, 255, 255, 0.4);
+            z-index: 5;
+        }
+
+        /* Highlighted Element */
+        .highlight {
+            position: relative;
+            z-index: 10;
+            border: 2px solid orange;
+            box-shadow: 0 0 10px orange;
+        }
+
+        /* Walkthrough Tooltip */
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border-radius: 5px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 20;
+        }
+
+        h1 {
+            text-align: center;
+            color: purple;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .box {
+            background-color: bisque;
+            border-radius: 10px;
+            text-align: center;
+            padding: 20px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .box:hover {
+            transform: scale(1.05);
+        }
+
+        img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+        }
+
+        .dark-mode {
+            background-color: black;
+            color: white;
+        }
+
+        .box.dark-mode {
+            background-color: grey;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        /* Toggle Button */
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: purple;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        input[type="range"] {
+            width: 200px;
+        }
+
+        .reset-btn {
+            margin-left: 10px;
+            padding: 5px 10px;
+            background-color: purple;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        /* Analytics Button */
+        .analytics-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: purple;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s;
+        }
+
+        .analytics-btn:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+
+<body>
+    {% csrf_token %}
+    <h1>Quiz App</h1>
+
+    <div class="controls">
+        <label class="toggle-switch" id="ts">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="slider"></span>
+        </label>
+        <span style="margin-left: 10px;">Dark Mode</span>
+        <label for="fontSizeSlider" style="margin-left: 20px;">Text Size:</label>
+        <input type="range" id="fontSizeSlider" min="12" max="24" value="16" style="margin-left: 10px;">
+        <button class="reset-btn" id="resetButton">Reset</button>
+    </div>
+
+    <div class="container">
+        <div class="box" onclick="navigateToMath('math');" id="mathBox">
+            <img src="{% static 'math.jpg' %}" alt="Math">
+            <h2>Math</h2>
+        </div>
+        <div class="box" onclick="navigateToSci('science');">
+            <img src="{% static 'science.jpeg' %}" alt="Science">
+            <h2>Science</h2>
+        </div>
+        <div class="box" onclick="navigateToGeo('geography');">
+            <img src="{% static 'geography.jpeg' %}" alt="Geography">
+            <h2>Geography</h2>
+        </div>
+        <div class="box" onclick="navigateToComp('computer');">
+            <img src="{% static 'comp.png' %}" alt="Computer Science">
+            <h2>Computer Science</h2>
+        </div>
+    </div>
+    <div class="tooltip" id="walkthroughTooltip"></div>
+    <div class="blur-overlay" id="blurOverlay" style="display: none;"></div>
+    <!-- Analytics Button -->
+    <div class="analytics-btn" id="any" onclick="openany()">
+        📊
+    </div>
+
+    <script>
+        function openany() {
+            const qp = "{% url 'analytics' %}"
+            window.location.href = qp;
+        }
+        function navigateToMath(subject) {
+            const qp = "{% url 'quizpage' 'math' %}";
+            window.location.href = qp; // Redirect to the quiz page with subject
+        }
+
+        function navigateToSci(subject) {
+            const qp = "{% url 'quizpage' 'science' %}";
+            window.location.href = qp; // Redirect to the quiz page with subject
+        }
+
+        function navigateToGeo(subject) {
+            const qp = "{% url 'quizpage' 'geography' %}";
+            window.location.href = qp; // Redirect to the quiz page with subject
+        }
+
+        function navigateToComp(subject) {
+            const qp = "{% url 'quizpage' 'computer' %}";
+            window.location.href = qp; // Redirect to the quiz page with subject
+        }
+
+
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+        const boxes = document.querySelectorAll('.box');
+        const fontSizeSlider = document.getElementById('fontSizeSlider');
+        const resetButton = document.getElementById('resetButton');
+
+        darkModeToggle.addEventListener('change', () => {
+            body.classList.toggle('dark-mode');
+            boxes.forEach(box => box.classList.toggle('dark-mode'));
+        });
+
+        fontSizeSlider.addEventListener('input', (event) => {
+            const newSize = event.target.value + 'px';
+            document.body.style.fontSize = newSize;
+        });
+
+        // Reset Button Logic
+        resetButton.addEventListener('click', () => {
+            document.body.style.fontSize = '16px';
+            fontSizeSlider.value = 16;
+            darkModeToggle.checked = false;
+            body.classList.remove('dark-mode');
+            boxes.forEach(box => box.classList.remove('dark-mode'));
+        });
+        // Walkthrough data
+        const walkthroughSteps = [
+            { elementId: 'any', message: 'See your previous test performances and comparisions here' },
+        ];
+
+        let currentStep = 0;
+
+        // Initialize Walkthrough
+        function startWalkthrough() {
+            showTooltip();
+        }
+
+        // Display tooltip for the current step
+        function showTooltip() {
+            const step = walkthroughSteps[currentStep];
+            const element = document.getElementById(step.elementId);
+            const tooltip = document.getElementById('walkthroughTooltip');
+            const blurOverlay = document.getElementById('blurOverlay');
+
+            // Show overlay and highlight element
+            blurOverlay.style.display = 'block';
+            element.classList.add('highlight');
+
+            // Position tooltip and show message
+            const rect = element.getBoundingClientRect();
+            const tooltipHeight = tooltip.offsetHeight; // Get the tooltip height
+            const tooltipWidth = tooltip.offsetWidth; // Get the tooltip width
+            const tooltipMargin = 5; // Margin between the element and the tooltip
+
+            // Calculate position for the tooltip
+            const topPosition = rect.top + window.scrollY - tooltipHeight - tooltipMargin; // Place above the element
+            const leftPosition = rect.left + window.scrollX - tooltipWidth + -400; // Adjust left to make it more centered
+
+            // Set tooltip position
+            tooltip.style.top = `${topPosition}px`;
+            tooltip.style.left = `${leftPosition}px`;
+            tooltip.textContent = step.message;
+            tooltip.style.opacity = 1;
+
+            // Add event listener to proceed to next step
+            element.onclick = () => nextStep();
+        }
+
+
+        // Move to next step in walkthrough
+        function nextStep() {
+            document.getElementById(walkthroughSteps[currentStep].elementId).onclick = null; // Remove current event
+            document.getElementById(walkthroughSteps[currentStep].elementId).classList.remove('highlight'); // Remove highlight
+            currentStep++;
+
+            if (currentStep < walkthroughSteps.length) {
+                showTooltip();
+            } else {
+                endWalkthrough();
+            }
+        }
+
+
+        // End the walkthrough
+        function endWalkthrough() {
+            document.getElementById('blurOverlay').style.display = 'none'; // Hide overlay
+            document.getElementById('walkthroughTooltip').style.opacity = 0;
+            const qp = "{% url 'wgraph' %}";
+            window.location.href = qp; // Redirect to the quiz page with subject
+        }
+
+        // Start walkthrough on page load
+        window.onload = startWalkthrough;
+    </script>
+</body>
+
+</html>

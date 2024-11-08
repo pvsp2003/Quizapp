@@ -1,0 +1,632 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url("{% static 'bg_light.jpg' %}");
+            background-repeat: no-repeat;
+            background-size: cover;
+            color: black;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: inherit;
+            background-repeat: no-repeat;
+            background-size: cover;
+            filter: blur(8px);
+            opacity: 0.8;
+            z-index: -1;
+        }
+
+        body.dark-mode {
+            background-image: url("{% static 'bg_dark.jpg' %}");
+            color: white;
+        }
+
+        body.dark-mode::before {
+            background-image: url("{% static 'bg_dark.jpg' %}");
+            filter: blur(8px);
+            opacity: 0.8;
+        }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 25px;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: purple;
+            border-radius: 25px;
+            transition: width 0.4s ease;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        /* Toggle Button */
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: purple;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(26px);
+        }
+
+        input[type="range"] {
+            width: 200px;
+        }
+
+        /* Quiz Question & Options */
+        .question-container {
+            max-width: 600px;
+            margin: auto;
+            text-align: center;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .option {
+            background-color: bisque;
+            padding: 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .option:hover {
+            background-color: #ddd;
+        }
+
+        /* Light Mode Colors */
+        .option.selected {
+            background-color: lightblue;
+        }
+
+        .option.correct {
+            background-color: green;
+            color: white;
+        }
+
+        .option.incorrect {
+            background-color: red;
+            color: white;
+        }
+
+        /* Dark Mode Colors */
+        body.dark-mode {
+            background-color: black;
+            color: white;
+        }
+
+        .option.dark-mode {
+            background-color: gray;
+        }
+
+        .option.dark-mode.selected {
+            background-color: lightblue;
+            color: black;
+        }
+
+        .option.dark-mode.correct {
+            background-color: darkgreen;
+        }
+
+        .option.dark-mode.incorrect {
+            background-color: darkred;
+        }
+
+        .next-btn,
+        .reset-btn,
+        .clr-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: purple;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .reset-btn {
+            margin-left: 10px;
+        }
+
+        .clr-btn {
+            margin-right: 100px;
+        }
+
+        @keyframes shake {
+            0% {
+                transform: translate(0);
+            }
+
+            25% {
+                transform: translate(-5px, 0);
+            }
+
+            50% {
+                transform: translate(5px, 0);
+            }
+
+            75% {
+                transform: translate(-5px, 0);
+            }
+
+            100% {
+                transform: translate(0);
+            }
+        }
+
+        .option.incorrect {
+            animation: shake 0.3s;
+        }
+
+        /* Style for the overlay */
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            visibility: hidden;
+        }
+
+        /* Style for the popup */
+        #popup {
+            background-color: bisque;
+            padding: 20px;
+            width: 700px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            position: relative;
+            /* To position the close button */
+        }
+
+        #popup.dark-mode {
+            background-color: gray;
+            color: white;
+        }
+
+        /* Style for the cross button */
+        #closeButton {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            border: none;
+            background: none;
+            color: purple;
+            /* Purple color */
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* Style for the purple circular Info "i" button */
+        #infoButton {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: purple;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 18px;
+            transform: translateY(55px);
+        }
+
+        #ib {
+            top: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background-color: purple;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+        }
+
+        .speaker-icon {
+            cursor: pointer;
+            width: 20px;
+            /* Icon width */
+            height: 20px;
+            /* Icon height */
+            transition: transform 0.2s;
+            /* Animation on hover */
+        }
+
+        .speaker-icon:hover {
+            transform: scale(1.1);
+            /* Scale effect on hover */
+            fill: purple;
+        }
+
+        /* Dark mode speaker icon styling */
+        .dark-mode .speaker-icon {
+            fill: purple;
+        }
+
+        .dark-mode .speaker-icon:hover {
+            fill: white;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Overlay and Popup Modal -->
+    <div id="overlay">
+        <div id="popup">
+            <button id="closeButton" onclick="closePopup()">×</button> <!-- Cross button -->
+            <h3 style="color: purple;"><u>Quiz Guidelines</u></h3>
+            <div class="rule-box">1. This quiz consists of 5 questions.</div><br>
+            <div class="rule-box">2. Each question carries 20 points.</div><br>
+            <div class="rule-box">3. Once started, participants cannot leave the quiz page.</div>
+            <div class="rule-box">4. Answers are revealed on click of <span><button disabled class="next-btn"
+                        style="cursor:default;">Next</button></span> and participants are taken to the next question.
+            </div>
+            <div class="rule-box">5. Correct answers are shown in <span><button disabled class="next-btn"
+                        style="cursor:default;background-color: green;">Green</button></span> and incorrect answers in
+                <span><button disabled class="next-btn"
+                        style="cursor:default;background-color: red;">Red</button></span>.</div>
+            <div class="rule-box">6. The <span><button disabled class="next-btn"
+                        style="cursor:default;">Clear</button></span> allows participants to deselect any selected
+                option.</div><br>
+            <div class="rule-box">7. The <span><button disabled id="ib"><i class="fas fa-info"></i></button></span> can
+                be clicked at any time to view all the rules.</div><br>
+            <div class="rule-box">8. Quiz can also be taken in voice control. You can select the options by saying <b>"Select option a/b/c/d"</b> and proceed to the next question by saying <b>"Go to next"</b>.</div>
+        </div>
+    </div>
+    <!-- Progress Bar -->
+    <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div class="controls">
+        <label class="toggle-switch">
+            <input type="checkbox" id="darkModeToggle">
+            <span class="slider"></span>
+        </label>
+        <span style="margin-left: 10px;">Dark Mode</span>
+        <label for="fontSizeSlider" style="margin-left: 20px;">Text Size:</label>
+        <input type="range" id="fontSizeSlider" min="12" max="24" value="16" style="margin-left: 10px;">
+        <button class="reset-btn" id="resetButton">Reset</button>
+        <abbr title="Quiz Guidelines"><button id="infoButton" onclick="openPopup()">
+            <i class="fas fa-info"></i>
+        </button></abbr>
+    </div>
+
+    <div class="question-container">
+        <h2 id="question"></h2>
+        <div class="options" id="optionsContainer">
+            <div class="option" data-correct="false" id="a"></div>
+            <div class="option" data-correct="false" id="b"></div>
+            <div class="option" data-correct="true" id="c"></div>
+            <div class="option" data-correct="false" id="d"></div>
+        </div>
+
+        <button class="clr-btn" id="clearButton">Clear</button><button class="next-btn" id="nextButton">Next</button>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <script>
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const body = document.body;
+        const nextButton = document.getElementById('nextButton');
+        const clearButton = document.getElementById('clearButton');
+        const resetButton = document.getElementById('resetButton');
+        const fontSizeSlider = document.getElementById('fontSizeSlider');
+        const progressBar = document.getElementById('progressBar');
+        const questionText = document.getElementById('question');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        const a = document.getElementById('a');
+        const b = document.getElementById('b');
+        const c = document.getElementById('c');
+        const d = document.getElementById('d');
+        const pop = document.getElementById('popup');
+        const speaker = `<svg class="speaker-icon" onclick="speak()" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="gray">
+            <path d="M12 3v18l-6-6h-4v-6h4l6-6zm1.5 6h1.5v4h-1.5v-4zm-3 0h1.5v4H10.5v-4z"/>
+            <path d="M18 12c0 1.65-.56 3.16-1.5 4.5l1.42 1.42C19.42 16.11 20 14.19 20 12c0-2.19-.58-4.11-1.5-5.92l-1.42 1.42C17.44 8.84 18 10.35 18 12zM5.5 12c0 2.85 1.45 5.24 3.62 6.5l-1.42 1.42C6.58 17.11 5 14.72 5 12c0-2.72 1.58-5.11 3.7-7.14L9.12 4.5C7.95 5.76 5.5 8.15 5.5 12z"/>
+        </svg>`;
+        let selectedOption = null;
+        let answered = false;
+        let progress = 0;
+        let currentQuestionIndex = 0;
+        let questions = []; // Array to hold questions
+        let subject = '';
+        let score = 0; // Initialize score variable
+        let optionsElements = []; // Store dynamic options
+        // Function to display the popup on page load
+        // Start Speech Recognition
+        recognition.continuous = true; // Enable continuous listening
+recognition.interimResults = false; // Only get final results for better accuracy
+        function startVoiceRecognition() {
+            recognition.start();
+        }
+
+        // Stop Speech Recognition
+        function stopVoiceRecognition() {
+            recognition.stop();
+        }
+
+        // Handle voice commands
+        recognition.onresult = (event) => {
+            const lastResult = event.results[event.results.length - 1];
+            var command = lastResult[0].transcript.trim().toLowerCase();
+            command = command.slice(0, -1);
+            console.log(command);
+            if (command.includes("select option")) {
+                selectOptionByVoice(command);
+            } else if (command === "go to next") {
+                console.log("from elseif")
+                nextButton.click();
+            }
+        };
+
+        // Function to select an option by voice
+        function selectOptionByVoice(command) {
+    const options = { a, b, c, d };
+    const optionKeys = ["a", "b", "c", "d"];
+    
+    optionKeys.forEach((key, index) => {
+        if (command === `select option ${key}` && options[key]) {
+            optionsElements[index].click();
+        }
+    });
+}
+
+        window.onload = function () {
+            document.getElementById("overlay").style.visibility = "visible";
+            startVoiceRecognition(); // Start listening for commands
+        }
+
+        // Function to open the popup when the "i" button is clicked
+        function openPopup() {
+            document.getElementById("overlay").style.visibility = "visible";
+        }
+
+        // Function to close the popup when the cross button is clicked
+        function closePopup() {
+            document.getElementById("overlay").style.visibility = "hidden";
+        }
+        // Load questions from Django context
+        document.addEventListener('DOMContentLoaded', () => {
+            const questionsJson = JSON.parse('{{ questions_json|safe }}');// Load questions from Django context
+            questions = questionsJson; // Set the questions array
+            console.log(questions); // Check if questions are loaded properly
+            subject = questions[0].subject;
+            console.log(subject);
+            loadQuestion(); // Load the first question
+        });
+        // Toggle Dark Mode
+        darkModeToggle.addEventListener('change', () => {
+            body.classList.toggle('dark-mode');
+            pop.classList.toggle('dark-mode');
+            document.querySelectorAll('.option').forEach(option => option.classList.toggle('dark-mode'));
+        });
+
+        // Font Size Resizer
+        fontSizeSlider.addEventListener('input', (event) => {
+            const newSize = event.target.value + 'px';
+            document.body.style.fontSize = newSize;
+        });
+        let opt = []
+        // Load the current question
+        function loadQuestion() {
+            if (currentQuestionIndex == questions.length - 1) {
+                nextButton.innerHTML = "Submit";
+            }
+            if (currentQuestionIndex < questions.length) {
+                const currentQuestion = questions[currentQuestionIndex];
+                questionText.innerHTML = currentQuestion.question + speaker; // Set the question text
+                optionsContainer.innerHTML = ''; // Clear previous options
+                opt.length = 0;
+                optionsElements = [];
+                // Create option elements
+                currentQuestion.options.forEach((option, index) => {
+                    const optionDiv = document.createElement('div');
+                    optionDiv.className = 'option';
+                    optionDiv.textContent = option;
+                    opt.push(option);
+                    optionsElements.push(optionDiv);
+                    optionDiv.setAttribute('data-option', option); // Store the option value
+
+                    // Check if dark mode is active and apply dark mode styling
+                    if (body.classList.contains('dark-mode')) {
+                        optionDiv.classList.add('dark-mode');
+                    }
+
+                    optionsContainer.appendChild(optionDiv);
+
+                    // Select Option
+                    optionDiv.addEventListener('click', () => {
+                        if (!answered) {
+                            if (selectedOption) {
+                                selectedOption.classList.remove('selected'); // Remove previous selection
+                            }
+                            selectedOption = optionDiv;
+                            optionDiv.classList.add('selected'); // Mark the selected option with a special color
+                        }
+                    });
+                });
+
+                answered = false; // Reset answered state
+                selectedOption = null; // Reset selected option
+            }
+            else {
+                window.location.href = `{% url 'updatescore' '__subject__' '__score__' %}`.replace('__subject__', subject).replace('__score__', score);
+            }
+        }
+
+        clearButton.addEventListener('click', () => {
+            // Reset selected option and answered state
+            selectedOption = null;
+            answered = false;
+
+            // Reset options
+            document.querySelectorAll('.option').forEach(option => {
+                option.classList.remove('selected', 'correct', 'incorrect');
+                option.style.pointerEvents = 'auto'; // Enable options again
+            });
+        })
+        // Next Button Logic
+        nextButton.addEventListener('click', () => {
+            if (selectedOption && !answered) {
+                const isCorrect = selectedOption.getAttribute('data-option') === questions[currentQuestionIndex].correct;
+
+                // Remove the 'selected' class and add correct/incorrect classes
+                selectedOption.classList.remove('selected');
+                selectedOption.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+                // Highlight the correct option
+                questions[currentQuestionIndex].options.forEach((option, index) => {
+                    if (questions[currentQuestionIndex].correct === option) {
+                        optionsContainer.children[index].classList.add('correct'); // Highlight the correct option
+                    }
+                });
+                // Update score if the answer is correct
+                if (isCorrect) {
+                    score += 20; // Increment score by 20 for a correct answer
+                    confetti();
+                } else {
+                    // Add shaking animation for incorrect answer
+                    selectedOption.classList.add('incorrect'); // This will trigger the shake animation
+                }
+                console.log("Current Score: " + score); // Log the current score
+
+                // Disable further selections after the answer is shown
+                document.querySelectorAll('.option').forEach(option => {
+                    option.style.pointerEvents = 'none';
+                });
+
+                answered = true; // Set answered to true to prevent further selections
+
+                // Disable further selections after the answer is shown
+                document.querySelectorAll('.option').forEach(option => {
+                    option.style.pointerEvents = 'none';
+                });
+
+                answered = true; // Set answered to true to prevent further selections
+
+                // Update the progress bar
+                progress += (100 / questions.length); // Increment by percentage based on total questions
+                progressBar.style.width = progress + '%';
+
+                // Automatically go to the next question after 3 seconds
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    loadQuestion(); // Load next question
+                }, 1500); // 3000 milliseconds = 3 seconds
+            } else if (!selectedOption) {
+                alert('Please select an option!');
+            }
+        });
+
+        // Reset Button Logic
+        resetButton.addEventListener('click', () => {
+
+            // Reset font size to default (16px)
+            document.body.style.fontSize = '16px';
+            fontSizeSlider.value = 16;  // Reset slider position to 16
+            darkModeToggle.checked = false;
+            body.classList.remove('dark-mode');
+            pop.classList.remove('dark-mode');
+            document.querySelectorAll('.option').forEach(option => option.classList.remove('dark-mode'));
+            boxes.forEach(box => box.classList.remove('dark-mode'));
+        });
+        function speak() {
+            // Get the text from the textarea
+            var text = questionText.textContent + ". " + opt[0] + ". " + opt[1] + ". " + opt[2] + ". " + opt[3];
+            console.log(opt);
+            // Create a new SpeechSynthesisUtterance instance
+            const utterance = new SpeechSynthesisUtterance(text);
+
+            // Set optional properties (like language, pitch, rate, etc.)
+            utterance.lang = 'en-US'; // Change to your preferred language
+            utterance.pitch = 1; // Range: 0 to 2
+            utterance.rate = 1; // Range: 0.1 to 10
+
+            // Speak the text
+            window.speechSynthesis.speak(utterance);
+        }
+
+    </script>
+</body>
+
+</html>
